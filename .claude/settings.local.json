@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Read(//c/tmp/**)",
+      "Bash(rm -rf seller-calc)",
+      "Bash(cp -r /tmp/seller-calc/* \"C:/Users/JYOTI/Desktop/Opsell/OpsellAI Seller Profitability Calculator/\")",
+      "Bash(cp /tmp/seller-calc/.gitignore \"C:/Users/JYOTI/Desktop/Opsell/OpsellAI Seller Profitability Calculator/\")",
+      "Bash(npm install:*)",
+      "Bash(npx vite:*)",
+      "Bash(kill %1)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

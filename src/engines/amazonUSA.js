@@ -279,8 +279,27 @@ export function calculateAmazonUSA(product, settings) {
   // Ads spend
   const adsSpendVal = round2(adsSpend);
 
-  // Return impact: estimated cost of returns as returnRate% of selling price
-  const returnImpact = round2(sellingPrice * (returnRate / 100));
+  // --- Return cost model ---
+  // returnRate is a percentage (e.g. 5 for 5%). US marketplaces have low RTO
+  // incidence (prepaid, address verified) but sellers bear Returns Processing.
+  const returnRateDecimal = (returnRate || 0) / 100;
+  const rtoShare = 0.05;
+  const cogsLossRate = 0.25;
+  // FBA: Amazon charges Returns Processing ≈ 50% of fulfillmentFee on certain
+  // categories. Self-Ship: seller bears a flat $3 reverse-shipping cost.
+  const reverseLogisticsPerReturn = isFBA
+    ? fulfillmentFee * 0.5
+    : 3;
+  const rtoPenaltyPerReturn = isFBA ? fulfillmentFee : 5;
+  const perReturnLogistics = reverseLogisticsPerReturn + rtoShare * rtoPenaltyPerReturn;
+  // Amazon USA keeps ~20% of referralFee as Returns Administration Fee
+  const feeClawbackPerReturn = referralFee * 0.20 + closingFee;
+  const cogsLossPerReturn = cogs * cogsLossRate + shippingFee;
+
+  const returnLogisticsFee = round2(perReturnLogistics * returnRateDecimal);
+  const returnImpact = round2(
+    (perReturnLogistics + feeClawbackPerReturn + cogsLossPerReturn) * returnRateDecimal
+  );
 
   // Total deductions
   const totalDeductions = round2(
@@ -341,6 +360,7 @@ export function calculateAmazonUSA(product, settings) {
     tcs,
     gstOnFees,
     adsSpend: adsSpendVal,
+    returnLogisticsFee,
     returnImpact,
     otherFees,
     totalDeductions,

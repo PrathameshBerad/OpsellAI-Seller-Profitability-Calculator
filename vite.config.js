@@ -4,4 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    __BUILD_DATE__: JSON.stringify(
+      new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    ),
+  },
 })

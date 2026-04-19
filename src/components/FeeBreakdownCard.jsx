@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import PlatformBadge from './PlatformBadge';
 import { PLATFORMS } from '../data/platforms';
+import { IconChevronDown } from './Icon';
+import Tip from './Tip';
 
 function fmt(value, platformId) {
   const p = PLATFORMS[platformId];
@@ -13,11 +15,11 @@ function fmt(value, platformId) {
 /* ── Stacked mini bar ────────────────────────────── */
 function MiniBar({ result }) {
   const items = [
-    { label: 'COGS',     value: result.cogs || 0,                                                                          color: '#475569' },
-    { label: 'Referral', value: result.referralFee,                                                                        color: '#ef4444' },
-    { label: 'Shipping', value: (result.shippingFee || 0) + (result.weightHandlingFee || 0) + (result.fulfillmentFee || 0), color: '#f97316' },
-    { label: 'Other',    value: (result.closingFee || 0) + (result.collectionFee || 0) + (result.codFee || 0) + (result.tcs || 0) + (result.otherFees || 0), color: '#a855f7' },
-    { label: 'Profit',   value: Math.max(0, result.netProfit),                                                             color: '#22c55e' },
+    { label: 'COGS',     value: result.cogs || 0,                                                                          color: 'var(--text-muted)' },
+    { label: 'Referral', value: result.referralFee,                                                                        color: 'var(--accent-danger)' },
+    { label: 'Shipping', value: (result.shippingFee || 0) + (result.weightHandlingFee || 0) + (result.fulfillmentFee || 0), color: 'var(--accent-warning)' },
+    { label: 'Other',    value: (result.closingFee || 0) + (result.collectionFee || 0) + (result.codFee || 0) + (result.tcs || 0) + (result.otherFees || 0), color: 'var(--chart-4, #a855f7)' },
+    { label: 'Profit',   value: Math.max(0, result.netProfit),                                                             color: 'var(--accent-success)' },
   ].filter(i => i.value > 0);
 
   const total = items.reduce((s, i) => s + i.value, 0);
@@ -53,7 +55,7 @@ function MiniBar({ result }) {
 }
 
 /* ── Fee row ─────────────────────────────────────── */
-function FeeRow({ label, amount, platformId, badge }) {
+function FeeRow({ label, amount, platformId, badge, term }) {
   const isZero = amount === 0;
   return (
     <div style={{
@@ -62,11 +64,18 @@ function FeeRow({ label, amount, platformId, badge }) {
       borderBottom: '1px solid rgba(255,255,255,0.03)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-        <span style={{ fontSize: 13, color: isZero ? 'var(--text-muted)' : 'var(--text-secondary)', fontFamily: 'DM Sans' }}>
+        <span style={{ fontSize: 13, color: isZero ? 'var(--text-muted)' : 'var(--text-secondary)', fontFamily: 'DM Sans', fontVariantNumeric: 'tabular-nums' }}>
           {label}
         </span>
-        {badge === 'Reclaimable' && <span className="badge-reclaimable">↩ Reclaimable</span>}
-        {badge === 'Info'        && <span className="badge-info">ITC</span>}
+        {term && <Tip term={term} size={13} />}
+        {badge === 'Reclaimable' && (
+          <span className="badge-reclaimable" title="Reclaimable on your GST return">
+            Reclaimable
+          </span>
+        )}
+        {badge === 'Info' && (
+          <span className="badge-info" title="Input Tax Credit">ITC</span>
+        )}
       </div>
       <span style={{
         fontSize: 13, fontFamily: 'DM Mono', fontWeight: 500,
@@ -118,17 +127,18 @@ function PlatformPanel({ r }) {
           <span style={{ fontSize: 13, fontFamily: 'DM Mono', fontWeight: 500, color: 'var(--text-primary)' }}>{fmt(r.sellingPrice, r.platform)}</span>
         </div>
 
-        <FeeRow label="Referral / Commission"    amount={r.referralFee}           platformId={r.platform} />
-        <FeeRow label="Closing / Fixed Fee"      amount={r.closingFee}            platformId={r.platform} />
-        {r.weightHandlingFee > 0 && <FeeRow label="Weight Handling"  amount={r.weightHandlingFee}  platformId={r.platform} />}
-        {r.fulfillmentFee    > 0 && <FeeRow label="Fulfillment Fee"  amount={r.fulfillmentFee}     platformId={r.platform} />}
-        {r.shippingFee       > 0 && <FeeRow label="Shipping"          amount={r.shippingFee}        platformId={r.platform} />}
-        {r.collectionFee     > 0 && <FeeRow label="Collection Fee"    amount={r.collectionFee}      platformId={r.platform} />}
-        {r.codFee            > 0 && <FeeRow label="COD Fee"           amount={r.codFee}             platformId={r.platform} />}
-        {r.tcs               > 0 && <FeeRow label="TCS (1%)"          amount={r.tcs}                platformId={r.platform} badge="Reclaimable" />}
-        {r.gstOnFees         > 0 && <FeeRow label="GST on Fees (18%)" amount={r.gstOnFees}          platformId={r.platform} badge="Info" />}
-        {r.adsSpend          > 0 && <FeeRow label="Ads Spend"         amount={r.adsSpend}           platformId={r.platform} />}
-        {r.returnImpact      > 0 && <FeeRow label="Return Impact"     amount={r.returnImpact}       platformId={r.platform} />}
+        <FeeRow label="Referral / Commission"    amount={r.referralFee}           platformId={r.platform} term="referral" />
+        <FeeRow label="Closing / Fixed Fee"      amount={r.closingFee}            platformId={r.platform} term="closing" />
+        {r.weightHandlingFee > 0 && <FeeRow label="Weight Handling"  amount={r.weightHandlingFee}  platformId={r.platform} term="weight" />}
+        {r.fulfillmentFee    > 0 && <FeeRow label="Fulfillment Fee"  amount={r.fulfillmentFee}     platformId={r.platform} term="fulfillment" />}
+        {r.shippingFee       > 0 && <FeeRow label="Shipping"          amount={r.shippingFee}        platformId={r.platform} term="shipping" />}
+        {r.collectionFee     > 0 && <FeeRow label="Collection Fee"    amount={r.collectionFee}      platformId={r.platform} term="collection" />}
+        {r.codFee            > 0 && <FeeRow label="COD Fee"           amount={r.codFee}             platformId={r.platform} term="cod" />}
+        {r.tcs               > 0 && <FeeRow label="TCS (1%)"          amount={r.tcs}                platformId={r.platform} badge="Reclaimable" term="tcs" />}
+        {r.gstOnFees         > 0 && <FeeRow label="GST on Fees (18%)" amount={r.gstOnFees}          platformId={r.platform} badge="Info" term="gstFees" />}
+        {r.adsSpend             > 0 && <FeeRow label="Ads Spend"              amount={r.adsSpend}           platformId={r.platform} term="adsSpend" />}
+        {r.returnLogisticsFee   > 0 && <FeeRow label="Reverse Logistics + RTO" amount={r.returnLogisticsFee} platformId={r.platform} term="returnImpact" />}
+        {r.returnImpact         > 0 && <FeeRow label="Return Impact (Total)"   amount={r.returnImpact}       platformId={r.platform} term="returnImpact" />}
 
         {/* Totals */}
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 2 }}>
@@ -145,7 +155,9 @@ function PlatformPanel({ r }) {
           border: '1px solid rgba(99,102,241,0.15)',
           marginTop: 6,
         }}>
-          <span style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: 'DM Sans', fontWeight: 700 }}>Net Payout</span>
+          <span style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: 'DM Sans', fontWeight: 700, display: 'inline-flex', alignItems: 'center' }}>
+            Net Payout <Tip term="netPayout" size={12} />
+          </span>
           <span style={{ fontSize: 13, fontFamily: 'DM Mono', fontWeight: 700, color: 'var(--accent-secondary)' }}>
             {fmt(r.netPayout, r.platform)}
           </span>
@@ -159,13 +171,15 @@ function PlatformPanel({ r }) {
         borderTop: '1px solid rgba(255,255,255,0.04)',
       }}>
         {[
-          { label: 'Margin', value: `${r.profitMargin.toFixed(1)}%`,       color: r.profitMargin >= 20 ? 'var(--accent-success)' : r.profitMargin >= 10 ? 'var(--accent-warning)' : 'var(--accent-danger)' },
-          { label: 'ROI',    value: `${r.roi.toFixed(1)}%`,                  color: r.roi >= 25         ? 'var(--accent-success)' : r.roi >= 10           ? 'var(--accent-warning)' : 'var(--accent-danger)' },
-          { label: 'Fee %',  value: `${r.effectiveFeePercent.toFixed(1)}%`, color: 'var(--text-secondary)' },
+          { label: 'Margin', term: 'margin',       value: `${r.profitMargin.toFixed(1)}%`,       color: r.profitMargin >= 20 ? 'var(--accent-success)' : r.profitMargin >= 10 ? 'var(--accent-warning)' : 'var(--accent-danger)' },
+          { label: 'ROI',    term: 'roi',          value: `${r.roi.toFixed(1)}%`,                  color: r.roi >= 25         ? 'var(--accent-success)' : r.roi >= 10           ? 'var(--accent-warning)' : 'var(--accent-danger)' },
+          { label: 'Fee %',  term: 'effectiveFee', value: `${r.effectiveFeePercent.toFixed(1)}%`, color: 'var(--text-secondary)' },
         ].map(m => (
           <div key={m.label} style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'DM Sans', marginBottom: 3 }}>{m.label}</p>
-            <p style={{ fontSize: 13, fontFamily: 'DM Mono', fontWeight: 700, color: m.color }}>{m.value}</p>
+            <p style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'DM Sans', marginBottom: 3, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+              {m.label} <Tip term={m.term} size={11} />
+            </p>
+            <p style={{ fontSize: 13, fontFamily: 'DM Mono', fontWeight: 700, color: m.color, fontVariantNumeric: 'tabular-nums' }}>{m.value}</p>
           </div>
         ))}
       </div>
@@ -181,24 +195,35 @@ export default function FeeBreakdownCard({ productName, results }) {
   return (
     <div className="breakdown-card">
       {/* Collapsible header */}
-      <button className="breakdown-header" onClick={() => setExpanded(!expanded)}>
+      <button
+        className="breakdown-header"
+        onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
+        aria-controls={`breakdown-body-${productName}`}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
+          <span style={{ fontFamily: 'Sora, sans-serif', fontWeight: 600, fontSize: 15, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
             {productName}
           </span>
           <span style={{
             fontSize: 11, fontFamily: 'DM Sans', color: 'var(--text-muted)',
             background: 'var(--glass-bg)', border: '1px solid var(--glass-border)',
-            padding: '2px 8px', borderRadius: 6,
+            padding: '2px 8px', borderRadius: 6, fontWeight: 600,
           }}>
             {results.length} platform{results.length !== 1 ? 's' : ''}
           </span>
         </div>
-        <span className={`chevron${expanded ? ' open' : ''}`}>▾</span>
+        <span className={`chevron${expanded ? ' open' : ''}`} aria-hidden="true">
+          <IconChevronDown size={16} />
+        </span>
       </button>
 
       {expanded && (
-        <div className="animate-open" style={{ padding: '0 20px 20px', overflow: 'hidden' }}>
+        <div
+          id={`breakdown-body-${productName}`}
+          className="animate-open"
+          style={{ padding: '0 20px 20px', overflow: 'hidden' }}
+        >
           <div style={{
             display: 'grid',
             gridTemplateColumns: results.length === 1 ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',

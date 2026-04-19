@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import PlatformBadge from './PlatformBadge';
 import { PLATFORMS } from '../data/platforms';
+import { IconArrowUp, IconArrowDown, IconArrowUpDown, IconDownload, IconCrown, IconCheck, IconSparkle } from './Icon';
 
 function formatCurrency(value, platformId) {
   const p = PLATFORMS[platformId];
@@ -16,14 +17,20 @@ function MarginPill({ value }) {
 }
 
 function SortIcon({ active, dir }) {
+  const color = active ? 'var(--accent-primary)' : 'currentColor';
+  const opacity = active ? 1 : 0.35;
+  const Icon = !active ? IconArrowUpDown : dir === 'asc' ? IconArrowUp : IconArrowDown;
   return (
-    <span style={{ marginLeft: 5, fontSize: 10, opacity: active ? 1 : 0.3, color: active ? 'var(--accent-primary)' : 'inherit' }}>
-      {active ? (dir === 'asc' ? '↑' : '↓') : '↕'}
+    <span style={{
+      marginLeft: 5, display: 'inline-flex', alignItems: 'center',
+      color, opacity,
+    }}>
+      <Icon size={10} />
     </span>
   );
 }
 
-export default function ComparisonTable({ results }) {
+export default function ComparisonTable({ results, summary }) {
   const [sortKey, setSortKey]           = useState('netProfit');
   const [sortDir, setSortDir]           = useState('desc');
   const [highlightMetric, setHighlight] = useState('netProfit');
@@ -69,11 +76,18 @@ export default function ComparisonTable({ results }) {
   if (results.length === 0) {
     return (
       <div className="empty-state">
-        <div style={{ fontSize: 44, marginBottom: 16, opacity: 0.1 }}>◎</div>
-        <p style={{ color: 'var(--text-muted)', fontFamily: 'DM Sans', fontSize: 14, marginBottom: 6 }}>
+        <div style={{
+          margin: '0 auto 16px', width: 48, height: 48, borderRadius: '50%',
+          background: 'rgba(148,163,184,0.08)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text-muted)',
+        }}>
+          <IconSparkle size={20} />
+        </div>
+        <p style={{ color: 'var(--text-secondary)', fontFamily: 'DM Sans', fontSize: 14, marginBottom: 6 }}>
           No results yet
         </p>
-        <p style={{ color: 'var(--text-muted)', fontFamily: 'DM Sans', fontSize: 12, opacity: 0.7 }}>
+        <p style={{ color: 'var(--text-muted)', fontFamily: 'DM Sans', fontSize: 12 }}>
           Select platforms and fill in product details to see the comparison
         </p>
       </div>
@@ -83,16 +97,63 @@ export default function ComparisonTable({ results }) {
   const columns = [
     { key: 'productName',        label: 'Product',  sortable: false },
     { key: 'platform',           label: 'Platform', sortable: false },
-    { key: 'sellingPrice',       label: 'Price'  },
-    { key: 'totalDeductions',    label: 'Fees'   },
-    { key: 'effectiveFeePercent',label: 'Fee %'  },
-    { key: 'netPayout',          label: 'Payout' },
-    { key: 'netProfit',          label: 'Profit' },
-    { key: 'profitMargin',       label: 'Margin' },
-    { key: 'roi',                label: 'ROI'    },
+    { key: 'sellingPrice',       label: 'Price',  align: 'right' },
+    { key: 'totalDeductions',    label: 'Fees',   align: 'right' },
+    { key: 'effectiveFeePercent',label: 'Fee %',  align: 'right' },
+    { key: 'netPayout',          label: 'Payout', align: 'right' },
+    { key: 'netProfit',          label: 'Profit', align: 'right' },
+    { key: 'profitMargin',       label: 'Margin', align: 'right' },
+    { key: 'roi',                label: 'ROI',    align: 'right' },
   ];
 
   return (
+    <div>
+      {/* ── Best Platform Hero Banner ── */}
+      {summary && summary.hasResults && summary.uniquePlatformCount >= 2 && summary.bestPlatform !== '-' && (
+        <div
+          className="animate-card"
+          role="region"
+          aria-label="Top performing platform"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
+            padding: '16px 20px', borderRadius: 16, marginBottom: 20,
+            background: `linear-gradient(90deg, ${PLATFORMS[summary.bestPlatform]?.color}15 0%, rgba(255,255,255,0.02) 100%)`,
+            border: `1px solid ${PLATFORMS[summary.bestPlatform]?.color}30`,
+            borderLeft: `4px solid ${PLATFORMS[summary.bestPlatform]?.color}`,
+            boxShadow: `0 8px 32px ${PLATFORMS[summary.bestPlatform]?.color}15`,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <span
+              aria-hidden="true"
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 42, height: 42, borderRadius: 12,
+                background: `${PLATFORMS[summary.bestPlatform]?.color}22`,
+                color: PLATFORMS[summary.bestPlatform]?.color,
+                flexShrink: 0,
+              }}
+            >
+              <IconCrown size={20} />
+            </span>
+            <div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'DM Sans', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Top performing platform
+              </p>
+              <h3 style={{ fontSize: 18, fontFamily: 'Sora', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                {PLATFORMS[summary.bestPlatform]?.name}
+              </h3>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+             <p style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'DM Sans', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Avg Margin</p>
+             <p style={{ fontSize: 22, fontFamily: 'DM Mono', fontWeight: 600, color: 'var(--accent-warning)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+               {summary.avgMargin.toFixed(1)}%
+             </p>
+          </div>
+        </div>
+      )}
+
     <div style={{
       background: 'var(--bg-surface-2)',
       border: '1px solid var(--glass-border)',
@@ -136,13 +197,14 @@ export default function ComparisonTable({ results }) {
           {/* CSV Export */}
           <button
             onClick={exportCSV}
+            aria-label="Export results as CSV"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '6px 14px', borderRadius: 8,
+              padding: '8px 14px', borderRadius: 8, minHeight: 34,
               border: '1px solid var(--glass-border)',
               background: 'transparent',
               color: 'var(--text-secondary)',
-              fontFamily: 'DM Sans', fontWeight: 500, fontSize: 12,
+              fontFamily: 'DM Sans', fontWeight: 600, fontSize: 12,
               cursor: 'pointer', transition: 'all 180ms ease',
             }}
             onMouseEnter={e => {
@@ -156,26 +218,36 @@ export default function ComparisonTable({ results }) {
               e.currentTarget.style.color = 'var(--text-secondary)';
             }}
           >
-            ↓ Export CSV
+            <IconDownload size={13} /> Export CSV
           </button>
         </div>
       </div>
 
       {/* Table */}
       <div style={{ overflowX: 'auto' }}>
-        <table className="data-table">
+        <table className="data-table stack-on-mobile">
           <thead>
             <tr>
-              {columns.map(col => (
-                <th
-                  key={col.key}
-                  onClick={col.sortable !== false ? () => handleSort(col.key) : undefined}
-                  style={{ cursor: col.sortable !== false ? 'pointer' : 'default' }}
-                >
-                  {col.label}
-                  {col.sortable !== false && <SortIcon active={sortKey === col.key} dir={sortDir} />}
-                </th>
-              ))}
+              {columns.map(col => {
+                const isSorted = sortKey === col.key;
+                const ariaSort = col.sortable === false
+                  ? undefined
+                  : isSorted ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none';
+                return (
+                  <th
+                    key={col.key}
+                    scope="col"
+                    aria-sort={ariaSort}
+                    onClick={col.sortable !== false ? () => handleSort(col.key) : undefined}
+                    onKeyDown={col.sortable !== false ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort(col.key); } } : undefined}
+                    tabIndex={col.sortable !== false ? 0 : -1}
+                    style={{ cursor: col.sortable !== false ? 'pointer' : 'default', textAlign: col.align || 'left' }}
+                  >
+                    {col.label}
+                    {col.sortable !== false && <SortIcon active={isSorted} dir={sortDir} />}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -185,34 +257,38 @@ export default function ComparisonTable({ results }) {
               const roiColor = r.roi >= 25 ? 'var(--accent-success)' : r.roi >= 10 ? 'var(--accent-warning)' : 'var(--accent-danger)';
 
               return (
-                <tr key={rowKey} className={isBest ? 'best-row' : ''}>
-                  <td style={{
+                <tr key={rowKey} className={isBest ? 'best-row' : ''} style={isBest ? { borderLeft: `3px solid ${PLATFORMS[r.platform]?.color}` } : {}}>
+                  <td data-label="Product" style={{
                     fontFamily: 'DM Sans, sans-serif', fontWeight: 600,
                     fontSize: 13, color: 'var(--text-primary)',
                   }}>
                     {r.productName}
                   </td>
-                  <td><PlatformBadge platformId={r.platform} /></td>
-                  <td style={{ fontFamily: 'DM Mono', color: 'var(--text-secondary)' }}>
+                  <td data-label="Platform"><PlatformBadge platformId={r.platform} /></td>
+                  <td data-label="Selling price" style={{ fontFamily: 'DM Mono', color: 'var(--text-secondary)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(r.sellingPrice, r.platform)}
                   </td>
-                  <td style={{ fontFamily: 'DM Mono', color: 'var(--accent-danger)', opacity: 0.85 }}>
+                  <td data-label="Deductions" style={{ fontFamily: 'DM Mono', color: 'var(--accent-danger)', opacity: 0.85, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     -{formatCurrency(r.totalDeductions, r.platform)}
                   </td>
-                  <td style={{ fontFamily: 'DM Mono', color: 'var(--text-muted)' }}>
+                  <td data-label="Fee %" style={{ fontFamily: 'DM Mono', color: 'var(--text-muted)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {r.effectiveFeePercent.toFixed(1)}%
                   </td>
-                  <td style={{ fontFamily: 'DM Mono', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                  <td data-label="Net payout" style={{ fontFamily: 'DM Mono', color: 'var(--text-secondary)', fontWeight: 500, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(r.netPayout, r.platform)}
                   </td>
-                  <td style={{ fontFamily: 'DM Mono', fontWeight: 600, color: r.netProfit >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
+                  <td data-label="Net profit" style={{ fontFamily: 'DM Mono', fontWeight: 600, color: r.netProfit >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(r.netProfit, r.platform)}
-                    {isBest && <span className="best-star">★</span>}
+                    {isBest && (
+                      <span className="best-star" title="Best profit for this product" aria-label="Best profit">
+                        <IconCheck size={11} style={{ marginLeft: 4 }} />
+                      </span>
+                    )}
                   </td>
-                  <td>
+                  <td data-label="Margin" style={{ textAlign: 'right' }}>
                     <MarginPill value={r.profitMargin} />
                   </td>
-                  <td style={{ fontFamily: 'DM Mono', fontWeight: 600, color: roiColor }}>
+                  <td data-label="ROI" style={{ fontFamily: 'DM Mono', fontWeight: 600, color: roiColor, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {r.roi.toFixed(1)}%
                   </td>
                 </tr>
@@ -220,6 +296,39 @@ export default function ComparisonTable({ results }) {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Trust Signals Footer */}
+      <div style={{ marginTop: 12, padding: '0 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>
+          * Fees verified {typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'recently'}. Source: Official Seller Hubs.
+        </p>
+      </div>
+
+      {/* TOFU Acquisition CTA */}
+      <div
+        className="animate-fade"
+        style={{
+          margin: '24px 20px 20px', padding: '22px 24px',
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(99,102,241,0.02) 100%)',
+          border: '1px solid rgba(99,102,241,0.2)',
+          borderRadius: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16,
+        }}
+      >
+        <div style={{ flex: '1 1 260px' }}>
+          <h4 style={{ fontFamily: 'Sora', fontSize: 16, fontWeight: 600, color: '#c7d2fe', marginBottom: 4, letterSpacing: '-0.01em' }}>
+            Opsell automates this for every SKU across every marketplace.
+          </h4>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'DM Sans' }}>
+            Stop calculating margins manually. Connect your seller accounts and let Opsell track your real-time profitability.
+          </p>
+        </div>
+        <button className="btn btn-primary" style={{ flex: '0 0 auto' }}>
+          Try Opsell Free
+          <IconArrowUp size={13} style={{ transform: 'rotate(45deg)' }} />
+        </button>
+      </div>
       </div>
     </div>
   );

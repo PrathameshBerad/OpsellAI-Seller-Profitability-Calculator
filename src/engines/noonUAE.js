@@ -265,10 +265,23 @@ export function calculateNoonUAE(product, settings) {
   // --- Payout & profit ---
   const netPayout = r(sellingPrice - totalDeductions);
 
-  // Return impact: estimated cost of returns
-  const returnRateDecimal = returnRate / 100;
+  // --- Return cost model ---
+  const returnRateDecimal = (returnRate || 0) / 100;
+  const rtoShare = 0.08; // Noon has low-to-moderate RTO incidence
+  const cogsLossRate = 0.22;
+  // FBN: Noon charges reverse processing ≈ 50% of outbound fulfillmentFee
+  // Self-Ship: seller handles reverse at ~10 AED flat
+  const isFBN = fulfillmentMethod === 'Platform Fulfillment';
+  const reverseLogisticsPerReturn = isFBN ? fulfillmentFee * 0.5 : 10;
+  const rtoPenaltyPerReturn = isFBN ? fulfillmentFee : 15;
+  const perReturnLogistics = reverseLogisticsPerReturn + rtoShare * rtoPenaltyPerReturn;
+  // Noon keeps ~10% of referralFee as returns admin
+  const feeClawbackPerReturn = referralFee * 0.10;
+  const cogsLossPerReturn = cogs * cogsLossRate + shippingCostToBuyer;
+
+  const returnLogisticsFee = r(perReturnLogistics * returnRateDecimal);
   const returnImpact = r(
-    (cogs + shippingCostToBuyer + referralFee + fulfillmentFee) * returnRateDecimal
+    (perReturnLogistics + feeClawbackPerReturn + cogsLossPerReturn) * returnRateDecimal
   );
 
   const grossProfit = r(netPayout - cogs - shippingCostToBuyer);
@@ -305,6 +318,7 @@ export function calculateNoonUAE(product, settings) {
     tcs,
     gstOnFees,
     adsSpend: r(adsSpend),
+    returnLogisticsFee,
     returnImpact,
     otherFees,
     totalDeductions,

@@ -5,6 +5,7 @@ import {
   LineChart, Line, Cell, ReferenceLine,
 } from 'recharts';
 import { PLATFORMS } from '../data/platforms';
+import { IconSparkle } from './Icon';
 
 /* ── Design tokens ──────────────────────────────── */
 const PLATFORM_COLORS = Object.fromEntries(
@@ -74,12 +75,12 @@ function ProfitComparisonChart({ results }) {
   return (
     <ChartCard title="Profit by Platform" subtitle="Net profit comparison across all selected platforms">
       <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={data} margin={{ top: 4, right: 16, left: 4, bottom: 4 }}>
+        <BarChart data={data} margin={{ top: 4, right: 16, left: 4, bottom: 36 }}>
           <CartesianGrid {...gridProps} />
-          <XAxis dataKey="name" {...axisProps} />
+          <XAxis dataKey="name" {...axisProps} angle={-20} textAnchor="end" interval={0} />
           <YAxis {...axisProps} />
           <Tooltip {...tooltipStyle} />
-          <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8', fontFamily: 'DM Sans' }} />
+          <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8', fontFamily: 'DM Sans', paddingTop: '20px' }} />
           {platforms.map(p => (
             <Bar
               key={p}
@@ -101,7 +102,7 @@ function ProfitComparisonChart({ results }) {
 /* ── 2. Fee Breakdown Stacked ───────────────────── */
 function FeeBreakdownStackedChart({ results }) {
   const data = useMemo(() => results.map(r => ({
-    name: `${r.productName.substring(0, 9)}·${(PLATFORMS[r.platform]?.name || '').substring(0, 4)}`,
+    name: `${r.productName.substring(0, 16)}·${(PLATFORMS[r.platform]?.name || '').substring(0, 8)}`,
     Referral:   r.referralFee,
     Closing:    r.closingFee || 0,
     Shipping:   (r.shippingFee || 0) + (r.weightHandlingFee || 0) + (r.fulfillmentFee || 0),
@@ -119,7 +120,7 @@ function FeeBreakdownStackedChart({ results }) {
           <XAxis dataKey="name" {...axisProps} angle={-20} textAnchor="end" interval={0} />
           <YAxis {...axisProps} />
           <Tooltip {...tooltipStyle} />
-          <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8', fontFamily: 'DM Sans' }} />
+          <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8', fontFamily: 'DM Sans', paddingTop: '20px' }} />
           {feeTypes.map((ft, i) => (
             <Bar
               key={ft}
@@ -308,15 +309,33 @@ function BreakEvenChart({ results }) {
 }
 
 /* ── Dashboard ──────────────────────────────────── */
+const DASHBOARD_VIEWS = [
+  { id: 'profit',    label: 'Profit' },
+  { id: 'fees',      label: 'Fees' },
+  { id: 'radar',     label: 'Radar' },
+  { id: 'waterfall', label: 'Waterfall' },
+  { id: 'breakeven', label: 'Break-Even' },
+];
+
 export default function Dashboard({ results, products }) {
+  const [view, setView] = useState('profit');
+
   if (results.length === 0) {
     return (
       <div className="empty-state">
-        <div style={{ fontSize: 44, marginBottom: 16, opacity: 0.1 }}>◔</div>
-        <p style={{ color: 'var(--text-muted)', fontFamily: 'DM Sans', fontSize: 14, marginBottom: 6 }}>
+        <div style={{
+          margin: '0 auto 16px', width: 56, height: 56, borderRadius: '50%',
+          background: 'rgba(148,163,184,0.06)',
+          border: '1px dashed rgba(148,163,184,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text-muted)',
+        }}>
+          <IconSparkle size={24} />
+        </div>
+        <p style={{ color: 'var(--text-secondary)', fontFamily: 'DM Sans', fontSize: 14, marginBottom: 6 }}>
           No data yet
         </p>
-        <p style={{ color: 'var(--text-muted)', fontFamily: 'DM Sans', fontSize: 12, opacity: 0.7 }}>
+        <p style={{ color: 'var(--text-muted)', fontFamily: 'DM Sans', fontSize: 12 }}>
           Add products and select platforms to unlock analytics
         </p>
       </div>
@@ -325,18 +344,36 @@ export default function Dashboard({ results, products }) {
 
   return (
     <div className="animate-in">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 0 }} className="charts-grid">
-        <style>{`
-          @media (min-width: 1280px) { .charts-grid { grid-template-columns: 1fr 1fr; gap: 0; } }
-        `}</style>
-        <ProfitComparisonChart results={results} />
-        <FeeBreakdownStackedChart results={results} />
+      <div
+        role="tablist"
+        aria-label="Dashboard views"
+        style={{
+          display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16,
+          overflowX: 'auto',
+        }}
+        className="scrollbar-none"
+      >
+        {DASHBOARD_VIEWS.map(v => {
+          const active = view === v.id;
+          return (
+            <button
+              key={v.id}
+              role="tab"
+              aria-selected={active}
+              onClick={() => setView(v.id)}
+              className={active ? 'tab-btn active' : 'tab-btn'}
+              style={{ flex: '0 0 auto' }}
+            >
+              {v.label}
+            </button>
+          );
+        })}
       </div>
-      <PlatformRadarChart results={results} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 0 }} className="charts-grid">
-        <WaterfallChart results={results} products={products} />
-        <BreakEvenChart results={results} />
-      </div>
+      {view === 'profit'    && <ProfitComparisonChart    results={results} />}
+      {view === 'fees'      && <FeeBreakdownStackedChart results={results} />}
+      {view === 'radar'     && <PlatformRadarChart       results={results} />}
+      {view === 'waterfall' && <WaterfallChart           results={results} products={products} />}
+      {view === 'breakeven' && <BreakEvenChart           results={results} />}
     </div>
   );
 }

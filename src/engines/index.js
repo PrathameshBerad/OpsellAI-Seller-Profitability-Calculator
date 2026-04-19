@@ -5,6 +5,7 @@ import { calculateShopsy } from './shopsy';
 import { calculateNoonUAE } from './noonUAE';
 import { calculateWalmart } from './walmart';
 import { calculateEbay } from './ebay';
+import { calculateMeesho } from './meesho';
 
 const engineMap = {
   amazonIndia: calculateAmazonIndia,
@@ -14,6 +15,7 @@ const engineMap = {
   noonUAE: calculateNoonUAE,
   walmart: calculateWalmart,
   ebay: calculateEbay,
+  meesho: calculateMeesho,
 };
 
 export function calculateForPlatform(platformId, product, settings) {
@@ -22,15 +24,16 @@ export function calculateForPlatform(platformId, product, settings) {
   return engine(product, settings);
 }
 
-export function calculateAll(products) {
+export function calculateAll(products, globalSettings) {
   const results = [];
   for (const product of products) {
     for (const platformId of product.selectedPlatforms) {
-      const settings = product.platformSettings[platformId] || {};
+      const settings = globalSettings?.[platformId] || {};
       const result = calculateForPlatform(platformId, product, settings);
       if (result) {
         results.push({
           ...result,
+          platform: platformId,
           productId: product.id,
           productName: product.name,
         });

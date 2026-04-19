@@ -573,11 +573,29 @@ export function calculateAmazonIndia(product, settings) {
   // --- Payout & profit ---
   const netPayout = r(sellingPrice - totalDeductions);
 
-  // Return impact: estimated cost of returns
+  // --- Return cost model ---
+  // returnRate is entered as a percentage (e.g. 5 for 5%)
   const returnRateDecimal = returnRate / 100;
+  const isCOD = orderType === 'COD';
+  const rtoShare = isCOD ? 0.30 : 0.10;
+  const cogsLossRate = 0.25;
+  // FBA: Amazon charges Returns Processing ≈ 50% of fulfillmentFee
+  // Self-Ship: seller incurs reverse pickup ≈ 50% of weightHandlingFee
+  const reverseLogisticsPerReturn = fulfillmentMethod === 'Platform Fulfillment'
+    ? fulfillmentFee * 0.5
+    : weightHandlingFee * 0.5;
+  // RTO: full forward handling re-charged
+  const rtoPenaltyPerReturn = fulfillmentMethod === 'Platform Fulfillment'
+    ? fulfillmentFee
+    : weightHandlingFee;
+  const perReturnLogistics = reverseLogisticsPerReturn + rtoShare * rtoPenaltyPerReturn;
+  // Amazon keeps ~20% of referralFee as Returns Administration Fee
+  const feeClawbackPerReturn = referralFee * 0.20 + closingFee;
+  const cogsLossPerReturn = cogs * cogsLossRate + shippingCostToBuyer;
+
+  const returnLogisticsFee = r(perReturnLogistics * returnRateDecimal);
   const returnImpact = r(
-    (cogs + shippingCostToBuyer + referralFee + closingFee + weightHandlingFee + fulfillmentFee) *
-    returnRateDecimal
+    (perReturnLogistics + feeClawbackPerReturn + cogsLossPerReturn) * returnRateDecimal
   );
 
   const grossProfit = r(netPayout - cogs - shippingCostToBuyer);
@@ -617,6 +635,7 @@ export function calculateAmazonIndia(product, settings) {
     tcs,
     gstOnFees,
     adsSpend: r(adsSpend),
+    returnLogisticsFee,
     returnImpact,
     otherFees,
     totalDeductions,

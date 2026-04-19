@@ -263,8 +263,24 @@ export function calculateWalmart(product, settings) {
   // Ads spend
   const adsSpendVal = round2(adsSpend);
 
-  // Return impact: estimated cost of returns as returnRate% of selling price
-  const returnImpact = round2(sellingPrice * (returnRate / 100));
+  // --- Return cost model ---
+  // returnRate is a percentage (e.g. 5 for 5%). US prepaid, low RTO incidence.
+  const returnRateDecimal = (returnRate || 0) / 100;
+  const rtoShare = 0.04;
+  const cogsLossRate = 0.22;
+  // WFS: Walmart charges Returns Processing ≈ 50% of fulfillmentFee.
+  // Self-Ship: seller bears ~$3 reverse-shipping cost.
+  const reverseLogisticsPerReturn = isWFS ? fulfillmentFee * 0.5 : 3;
+  const rtoPenaltyPerReturn = isWFS ? fulfillmentFee : 5;
+  const perReturnLogistics = reverseLogisticsPerReturn + rtoShare * rtoPenaltyPerReturn;
+  // Walmart typically refunds full commission on returns; no clawback
+  const feeClawbackPerReturn = 0;
+  const cogsLossPerReturn = cogs * cogsLossRate + shippingFee;
+
+  const returnLogisticsFee = round2(perReturnLogistics * returnRateDecimal);
+  const returnImpact = round2(
+    (perReturnLogistics + feeClawbackPerReturn + cogsLossPerReturn) * returnRateDecimal
+  );
 
   // Total deductions
   const totalDeductions = round2(
@@ -323,6 +339,7 @@ export function calculateWalmart(product, settings) {
     tcs,
     gstOnFees,
     adsSpend: adsSpendVal,
+    returnLogisticsFee,
     returnImpact,
     otherFees,
     totalDeductions,

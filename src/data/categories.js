@@ -324,4 +324,15 @@ export const CATEGORIES = {
     'Guitars & Basses',
     'Athletic Shoes (≥$150)',
   ],
+  meesho: [
+    'Women Ethnic',
+    'Women Western',
+    'Men',
+    'Kids',
+    'Home & Kitchen',
+    'Beauty & Health',
+    'Jewellery & Accessories',
+    'Bags & Footwear',
+    'Electronics'
+  ],
 };

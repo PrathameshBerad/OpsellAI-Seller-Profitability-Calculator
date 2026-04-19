@@ -111,6 +111,22 @@ export const PLATFORMS = {
     hasStoreTier: true,
     settlementDays: 3,
   },
+  meesho: {
+    id: 'meesho',
+    name: 'Meesho',
+    currency: 'INR',
+    currencySymbol: '₹',
+    color: '#df257a',
+    fbxProgram: null,
+    hasCOD: true,
+    hasTCS: true,
+    hasGST: true,
+    hasSellerTier: false,
+    hasShippingZone: true,
+    hasWeight: true,
+    hasStoreTier: false,
+    settlementDays: 7,
+  },
 };
 
 export const PLATFORM_IDS = Object.keys(PLATFORMS);

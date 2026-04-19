@@ -92,7 +92,7 @@ function getShippingFee(weightGrams, shippingZone) {
  * @param {string} product.category - Product category
  * @param {number} product.weight - Product weight in grams
  * @param {number} [product.adsSpend=0] - Advertising spend per unit
- * @param {number} [product.returnRate=0] - Return rate as decimal (e.g., 0.05 for 5%)
+ * @param {number} [product.returnRate=0] - Return rate as percentage (e.g., 5 for 5%)
  *
  * @param {Object} settings
  * @param {string} settings.fulfillmentMethod - 'Self-Ship' | 'Platform Fulfillment'
@@ -153,8 +153,26 @@ export function calculateFlipkart(product, settings) {
   const weightHandlingFee = 0;
   const otherFees = 0;
 
-  // Return impact: estimated cost of returns as proportion of revenue
-  const returnImpact = round2(sellingPrice * returnRate);
+  // --- Return cost model ---
+  // returnRate is entered as a percentage (e.g. 5 for 5%) — convert to decimal.
+  const returnRateDecimal = (returnRate || 0) / 100;
+  // RTO (Return-to-Origin) share of returns is higher for COD than Prepaid
+  const rtoShare = orderType === 'COD' ? 0.40 : 0.20;
+  // Fraction of returned units that come back unsellable (COGS write-off)
+  const cogsLossRate = 0.30;
+  // Flipkart re-charges forward shipping on RTO, plus a reverse-pickup fee
+  // (≈ forward shipping for customer returns)
+  const reverseLogisticsPerReturn = shippingFee;
+  const rtoPenaltyPerReturn = shippingFee;
+  const perReturnLogistics = reverseLogisticsPerReturn + rtoShare * rtoPenaltyPerReturn;
+  // Closing fee is NOT refunded on Flipkart returns (commission IS refunded)
+  const feeClawbackPerReturn = closingFee;
+  const cogsLossPerReturn = cogs * cogsLossRate;
+
+  const returnLogisticsFee = round2(perReturnLogistics * returnRateDecimal);
+  const returnImpact = round2(
+    (perReturnLogistics + feeClawbackPerReturn + cogsLossPerReturn) * returnRateDecimal
+  );
 
   // --- Totals ---
   let totalDeductions = round2(
@@ -174,11 +192,10 @@ export function calculateFlipkart(product, settings) {
   const roi = totalCost > 0 ? round2((netProfit / totalCost) * 100) : 0;
 
   // Break-even price: selling price at which net profit = 0
-  // SP - fees(SP) - totalCost - returnImpact = 0
-  // Approximate: fees proportional part = commissionRate + collectionRate + 0.01 (TCS) + returnRate
-  const proportionalRate = commissionRate + collectionRate + 0.01 + returnRate;
+  // In this model returnImpact components are not proportional to SP, so treat it as fixed.
+  const proportionalRate = commissionRate + collectionRate + 0.01;
   const gstMultiplier = includeGSTAsFee ? 1.18 : 1;
-  const fixedCosts = closingFee + shippingFee + codFee + shippingCostToBuyer + adsSpend + cogs;
+  const fixedCosts = closingFee + shippingFee + codFee + shippingCostToBuyer + adsSpend + cogs + returnImpact;
   const fixedGSTCosts = includeGSTAsFee
     ? round2((closingFee + shippingFee + codFee) * 0.18)
     : 0;
@@ -209,6 +226,7 @@ export function calculateFlipkart(product, settings) {
     tcs,
     gstOnFees,
     adsSpend: round2(adsSpend),
+    returnLogisticsFee,
     returnImpact,
     otherFees,
     totalDeductions,

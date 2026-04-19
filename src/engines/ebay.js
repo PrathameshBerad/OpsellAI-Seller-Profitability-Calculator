@@ -176,10 +176,23 @@ export function calculateEbay(product, settings) {
   // --- Payout & profit ---
   const netPayout = r(sellingPrice - totalDeductions);
 
-  // Return impact: estimated cost of returns
-  const returnRateDecimal = returnRate / 100;
+  // --- Return cost model ---
+  // eBay sellers often offer "Free returns" (seller-paid reverse) or "Buyer pays".
+  // We assume seller-paid reverse for conservative margin estimate.
+  const returnRateDecimal = (returnRate || 0) / 100;
+  const rtoShare = 0.03; // US prepaid, very low RTO
+  const cogsLossRate = 0.20;
+  // eBay itself doesn't charge reverse logistics — seller pays the carrier (~$3)
+  const reverseLogisticsPerReturn = 3;
+  const rtoPenaltyPerReturn = 4;
+  const perReturnLogistics = reverseLogisticsPerReturn + rtoShare * rtoPenaltyPerReturn;
+  // eBay refunds Final Value Fee on returns minus a small admin portion (~5%)
+  const feeClawbackPerReturn = referralFee * 0.05 + closingFee;
+  const cogsLossPerReturn = cogs * cogsLossRate + shippingCostToBuyer;
+
+  const returnLogisticsFee = r(perReturnLogistics * returnRateDecimal);
   const returnImpact = r(
-    (cogs + shippingCostToBuyer + referralFee + closingFee) * returnRateDecimal
+    (perReturnLogistics + feeClawbackPerReturn + cogsLossPerReturn) * returnRateDecimal
   );
 
   const grossProfit = r(netPayout - cogs - shippingCostToBuyer);
@@ -216,6 +229,7 @@ export function calculateEbay(product, settings) {
     tcs,
     gstOnFees,
     adsSpend: r(adsSpend),
+    returnLogisticsFee,
     returnImpact,
     otherFees,
     totalDeductions,

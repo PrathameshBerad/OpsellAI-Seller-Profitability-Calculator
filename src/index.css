@@ -94,7 +94,9 @@ body {
   font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
   font-size: 15px; /* up from 14px — better mobile legibility, still compact */
   line-height: 1.55;
+  /* dvh respects iOS dynamic toolbar; vh fallback for older browsers */
   min-height: 100vh;
+  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -106,7 +108,7 @@ body {
   body { font-size: 16px; }
 }
 
-#root { min-height: 100vh; }
+#root { min-height: 100vh; min-height: 100dvh; }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Sora', system-ui, sans-serif;

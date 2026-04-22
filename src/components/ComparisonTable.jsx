@@ -186,6 +186,7 @@ export default function ComparisonTable({ results, summary }) {
           <select
             value={highlightMetric}
             onChange={e => setHighlight(e.target.value)}
+            aria-label="Metric to highlight in comparison table"
             className="input-field select-base"
             style={{ width: 'auto', fontSize: 12, padding: '6px 28px 6px 10px' }}
           >

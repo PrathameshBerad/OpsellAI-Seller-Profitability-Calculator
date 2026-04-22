@@ -11,7 +11,7 @@ import PlatformSEOBlock from './components/PlatformSEOBlock';
 import { PLATFORMS } from './data/platforms';
 import {
   IconBrand, IconRefresh, IconPlus, IconTrash, IconMail, IconLink, IconCheck,
-  IconSparkle, IconArrowDown,
+  IconSparkle, IconArrowDown, IconClose,
 } from './components/Icon';
 
 function App() {
@@ -528,17 +528,18 @@ function App() {
                 </a>
                 <button
                   onClick={dismissAiTeaser}
+                  type="button"
                   aria-label="Dismiss AI teaser"
                   style={{
-                    flex: '0 0 auto', width: 28, height: 28, borderRadius: 8,
+                    flex: '0 0 auto', width: 36, height: 36, borderRadius: 8,
                     border: 'none', background: 'transparent',
                     color: 'var(--text-muted)', cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 18, lineHeight: 1,
+                    lineHeight: 1, transition: 'background 150ms ease, color 150ms ease',
                   }}
                   title="Dismiss"
                 >
-                  ×
+                  <IconClose size={16} />
                 </button>
               </div>
             )}

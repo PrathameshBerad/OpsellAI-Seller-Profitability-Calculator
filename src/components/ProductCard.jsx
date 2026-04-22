@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { PLATFORMS, SELLER_TIERS, SHIPPING_ZONES, EBAY_STORE_TIERS, ORDER_TYPES } from '../data/platforms';
 import { CATEGORIES } from '../data/categories';
+import { IconRefresh, IconClose } from './Icon';
 
 /* ── Tooltip ────────────────────────────────────────── */
 function Tip({ text }) {
@@ -100,18 +101,18 @@ export default function ProductCard({ product, onUpdate, onDelete, canDelete, on
           {onReset && (
             <ActionIconBtn
               onClick={onReset}
-              title="Reset config"
+              label="Reset product config"
               hoverColor="rgba(245,158,11,0.12)"
               hoverTextColor="#f59e0b"
-            >⟲</ActionIconBtn>
+            ><IconRefresh size={15} /></ActionIconBtn>
           )}
           {canDelete && (
             <ActionIconBtn
               onClick={onDelete}
-              title="Delete"
+              label="Delete product"
               hoverColor="rgba(239,68,68,0.12)"
               hoverTextColor="#ef4444"
-            >✕</ActionIconBtn>
+            ><IconClose size={15} /></ActionIconBtn>
           )}
         </div>
       </div>
@@ -203,21 +204,26 @@ export default function ProductCard({ product, onUpdate, onDelete, canDelete, on
   );
 }
 
-function ActionIconBtn({ onClick, title, children, hoverColor, hoverTextColor }) {
+function ActionIconBtn({ onClick, label, title, children, hoverColor, hoverTextColor }) {
   const [hover, setHover] = useState(false);
+  const accessibleLabel = label || title;
   return (
     <button
       onClick={onClick}
-      title={title}
+      type="button"
+      aria-label={accessibleLabel}
+      title={accessibleLabel}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        width: 28, height: 28, borderRadius: 8,
+        // 36×36 visual, 44×44 effective via inset pseudo not possible here
+        // — push to 36 for better touch than 28. Outer card already has 8px gap.
+        width: 36, height: 36, borderRadius: 8,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: hover ? (hoverColor || 'rgba(255,255,255,0.06)') : 'transparent',
         border: 'none', cursor: 'pointer',
         color: hover ? (hoverTextColor || 'var(--text-secondary)') : 'var(--text-muted)',
-        fontSize: 13, transition: 'all 150ms ease',
+        transition: 'background 150ms ease, color 150ms ease',
       }}
     >
       {children}

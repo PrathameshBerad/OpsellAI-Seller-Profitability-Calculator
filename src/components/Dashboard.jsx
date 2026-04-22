@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -7,34 +7,83 @@ import {
 import { PLATFORMS } from '../data/platforms';
 import { IconSparkle } from './Icon';
 
-/* ── Design tokens ──────────────────────────────── */
+/* ── Design tokens ──────────────────────────────────
+ * Recharts renders to SVG `fill`/`stroke` which don't resolve CSS variables
+ * reliably, so we read the tokens once at module load via getComputedStyle
+ * and hand real hex values to the chart. Falls back to the legacy literals
+ * during SSR or when a token is missing.
+ */
+function readToken(name, fallback) {
+  if (typeof window === 'undefined') return fallback;
+  const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return val || fallback;
+}
+
+const TOKENS = {
+  chart1:  readToken('--chart-1',        '#6366f1'),
+  chart2:  readToken('--chart-2',        '#22d3ee'),
+  chart3:  readToken('--chart-3',        '#10b981'),
+  chart4:  readToken('--chart-4',        '#a855f7'),
+  chart5:  readToken('--chart-5',        '#f97316'),
+  danger:  readToken('--accent-danger',  '#ef4444'),
+  warning: readToken('--accent-warning', '#f59e0b'),
+  success: readToken('--accent-success', '#10b981'),
+  muted:   readToken('--text-muted',     '#475569'),
+  secondary: readToken('--text-secondary', '#94a3b8'),
+  primary: readToken('--text-primary',   '#f1f5f9'),
+  surface2:readToken('--bg-surface-2',   '#1a1a2e'),
+};
+
 const PLATFORM_COLORS = Object.fromEntries(
   Object.entries(PLATFORMS).map(([id, p]) => [id, p.color])
 );
 
-const FEE_COLORS = ['#6366f1', '#ef4444', '#f97316', '#22d3ee', '#a855f7'];
+// Stacked-fee palette — tracks chart-* tokens for theme consistency.
+const FEE_COLORS = [TOKENS.chart1, TOKENS.danger, TOKENS.chart5, TOKENS.chart2, TOKENS.chart4];
+
+/* ── Reduced-motion hook ────────────────────────────
+ * Recharts ignores prefers-reduced-motion; we gate `animationDuration` via
+ * matchMedia so charts render instantly when the user has that preference on.
+ */
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const on = () => setReduced(mq.matches);
+    mq.addEventListener?.('change', on);
+    return () => mq.removeEventListener?.('change', on);
+  }, []);
+  return reduced;
+}
+const chartAnim = (reduced) => ({ animationBegin: 0, animationDuration: reduced ? 0 : 900 });
 
 const tooltipStyle = {
   contentStyle: {
-    backgroundColor: '#1a1a2e',
+    backgroundColor: TOKENS.surface2,
     border: '1px solid rgba(255,255,255,0.08)',
     borderRadius: 12,
-    color: '#f1f5f9',
+    color: TOKENS.primary,
     fontSize: 12,
     boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
     backdropFilter: 'blur(20px)',
     fontFamily: 'DM Sans, sans-serif',
   },
-  itemStyle: { color: '#94a3b8' },
-  labelStyle: { color: '#f1f5f9', fontWeight: 600, fontFamily: 'Sora, sans-serif' },
+  itemStyle: { color: TOKENS.secondary },
+  labelStyle: { color: TOKENS.primary, fontWeight: 600, fontFamily: 'Sora, sans-serif' },
   cursor: { fill: 'rgba(255,255,255,0.03)' },
 };
 
 const axisProps = {
-  tick: { fill: '#475569', fontSize: 11, fontFamily: 'DM Sans' },
+  tick: { fill: TOKENS.muted, fontSize: 11, fontFamily: 'DM Sans' },
   axisLine: { stroke: 'rgba(255,255,255,0.05)' },
   tickLine: false,
 };
+
+const legendStyle = { fontSize: 11, color: TOKENS.secondary, fontFamily: 'DM Sans', paddingTop: '20px' };
 
 const gridProps = {
   strokeDasharray: '3 3',
@@ -61,6 +110,7 @@ function ChartCard({ title, subtitle, children }) {
 
 /* ── 1. Profit Comparison ───────────────────────── */
 function ProfitComparisonChart({ results }) {
+  const reduced = useReducedMotion();
   const data = useMemo(() => {
     const m = {};
     for (const r of results) {
@@ -80,17 +130,16 @@ function ProfitComparisonChart({ results }) {
           <XAxis dataKey="name" {...axisProps} angle={-20} textAnchor="end" interval={0} />
           <YAxis {...axisProps} />
           <Tooltip {...tooltipStyle} />
-          <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8', fontFamily: 'DM Sans', paddingTop: '20px' }} />
+          <Legend wrapperStyle={legendStyle} />
           {platforms.map(p => (
             <Bar
               key={p}
               dataKey={p}
               name={PLATFORMS[p]?.name || p}
-              fill={PLATFORM_COLORS[p] || '#6366f1'}
+              fill={PLATFORM_COLORS[p] || TOKENS.chart1}
               radius={[6, 6, 0, 0]}
               opacity={0.88}
-              animationBegin={0}
-              animationDuration={900}
+              {...chartAnim(reduced)}
             />
           ))}
         </BarChart>
@@ -101,6 +150,7 @@ function ProfitComparisonChart({ results }) {
 
 /* ── 2. Fee Breakdown Stacked ───────────────────── */
 function FeeBreakdownStackedChart({ results }) {
+  const reduced = useReducedMotion();
   const data = useMemo(() => results.map(r => ({
     name: `${r.productName.substring(0, 16)}·${(PLATFORMS[r.platform]?.name || '').substring(0, 8)}`,
     Referral:   r.referralFee,
@@ -120,7 +170,7 @@ function FeeBreakdownStackedChart({ results }) {
           <XAxis dataKey="name" {...axisProps} angle={-20} textAnchor="end" interval={0} />
           <YAxis {...axisProps} />
           <Tooltip {...tooltipStyle} />
-          <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8', fontFamily: 'DM Sans', paddingTop: '20px' }} />
+          <Legend wrapperStyle={legendStyle} />
           {feeTypes.map((ft, i) => (
             <Bar
               key={ft}
@@ -129,8 +179,7 @@ function FeeBreakdownStackedChart({ results }) {
               fill={FEE_COLORS[i]}
               opacity={0.85}
               radius={i === feeTypes.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-              animationBegin={0}
-              animationDuration={900}
+              {...chartAnim(reduced)}
             />
           ))}
         </BarChart>
@@ -141,6 +190,7 @@ function FeeBreakdownStackedChart({ results }) {
 
 /* ── 3. Platform Radar ──────────────────────────── */
 function PlatformRadarChart({ results }) {
+  const reduced = useReducedMotion();
   const platforms = useMemo(() => [...new Set(results.map(r => r.platform))], [results]);
 
   const data = useMemo(() => {
@@ -188,7 +238,7 @@ function PlatformRadarChart({ results }) {
       <ResponsiveContainer width="100%" height={320}>
         <RadarChart data={data}>
           <PolarGrid stroke="rgba(255,255,255,0.06)" />
-          <PolarAngleAxis dataKey="metric" tick={{ fill: '#475569', fontSize: 11, fontFamily: 'DM Sans' }} />
+          <PolarAngleAxis dataKey="metric" tick={{ fill: TOKENS.muted, fontSize: 11, fontFamily: 'DM Sans' }} />
           <PolarRadiusAxis tick={false} domain={[0, 100]} />
           {platforms.map(pid => (
             <Radar
@@ -199,11 +249,10 @@ function PlatformRadarChart({ results }) {
               fill={PLATFORM_COLORS[pid]}
               fillOpacity={0.1}
               strokeWidth={2}
-              animationBegin={0}
-              animationDuration={900}
+              {...chartAnim(reduced)}
             />
           ))}
-          <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8', fontFamily: 'DM Sans' }} />
+          <Legend wrapperStyle={{ fontSize: 11, color: TOKENS.secondary, fontFamily: 'DM Sans' }} />
           <Tooltip {...tooltipStyle} />
         </RadarChart>
       </ResponsiveContainer>
@@ -213,6 +262,7 @@ function PlatformRadarChart({ results }) {
 
 /* ── 4. Waterfall Chart ─────────────────────────── */
 function WaterfallChart({ results, products }) {
+  const reduced = useReducedMotion();
   const [selectedProductId, setSelectedProductId] = useState(null);
   const activeId = selectedProductId || products[0]?.id;
   const pr = results.filter(r => r.productId === activeId);
@@ -221,14 +271,14 @@ function WaterfallChart({ results, products }) {
     if (!pr.length) return [];
     const r = pr[0];
     return [
-      { name: 'Price',    value: r.sellingPrice,                                                                              fill: '#6366f1' },
-      { name: 'Referral', value: -r.referralFee,                                                                              fill: '#ef4444' },
-      { name: 'Closing',  value: -(r.closingFee || 0),                                                                        fill: '#f59e0b' },
-      { name: 'Shipping', value: -((r.shippingFee || 0) + (r.weightHandlingFee || 0) + (r.fulfillmentFee || 0)),              fill: '#f97316' },
-      { name: 'Other',    value: -((r.collectionFee || 0) + (r.codFee || 0) + (r.tcs || 0) + (r.otherFees || 0)),            fill: '#a855f7' },
-      { name: 'Payout',   value: r.netPayout,                                                                                 fill: '#22d3ee' },
-      { name: 'COGS',     value: -(r.cogs || 0),                                                                              fill: '#475569' },
-      { name: 'Profit',   value: r.netProfit,                                                                                 fill: r.netProfit >= 0 ? '#10b981' : '#ef4444' },
+      { name: 'Price',    value: r.sellingPrice,                                                                              fill: TOKENS.chart1 },
+      { name: 'Referral', value: -r.referralFee,                                                                              fill: TOKENS.danger },
+      { name: 'Closing',  value: -(r.closingFee || 0),                                                                        fill: TOKENS.warning },
+      { name: 'Shipping', value: -((r.shippingFee || 0) + (r.weightHandlingFee || 0) + (r.fulfillmentFee || 0)),              fill: TOKENS.chart5 },
+      { name: 'Other',    value: -((r.collectionFee || 0) + (r.codFee || 0) + (r.tcs || 0) + (r.otherFees || 0)),            fill: TOKENS.chart4 },
+      { name: 'Payout',   value: r.netPayout,                                                                                 fill: TOKENS.chart2 },
+      { name: 'COGS',     value: -(r.cogs || 0),                                                                              fill: TOKENS.muted },
+      { name: 'Profit',   value: r.netProfit,                                                                                 fill: r.netProfit >= 0 ? TOKENS.success : TOKENS.danger },
     ].filter(i => i.value !== 0 || ['Price', 'Payout', 'Profit'].includes(i.name));
   }, [pr]);
 
@@ -238,6 +288,7 @@ function WaterfallChart({ results, products }) {
         <select
           value={activeId || ''}
           onChange={e => setSelectedProductId(Number(e.target.value))}
+          aria-label="Select product for waterfall chart"
           className="input-field select-base"
           style={{ width: 'auto', fontSize: 12, padding: '6px 28px 6px 10px' }}
         >
@@ -251,7 +302,7 @@ function WaterfallChart({ results, products }) {
           <YAxis {...axisProps} />
           <Tooltip {...tooltipStyle} />
           <ReferenceLine y={0} stroke="rgba(255,255,255,0.1)" />
-          <Bar dataKey="value" radius={[6, 6, 0, 0]} animationBegin={0} animationDuration={900}>
+          <Bar dataKey="value" radius={[6, 6, 0, 0]} {...chartAnim(reduced)}>
             {data.map((e, i) => <Cell key={i} fill={e.fill} opacity={0.88} />)}
           </Bar>
         </BarChart>
@@ -262,6 +313,7 @@ function WaterfallChart({ results, products }) {
 
 /* ── 5. Break-Even Line Chart ───────────────────── */
 function BreakEvenChart({ results }) {
+  const reduced = useReducedMotion();
   const platforms = useMemo(() => [...new Set(results.map(r => r.platform))], [results]);
 
   const data = useMemo(() => {
@@ -285,9 +337,9 @@ function BreakEvenChart({ results }) {
           <CartesianGrid {...gridProps} />
           <XAxis dataKey="units" {...axisProps} />
           <YAxis {...axisProps} />
-          <ReferenceLine y={0} stroke="rgba(239,68,68,0.3)" strokeDasharray="4 4" label={{ value: 'Break-Even', fill: '#ef4444', fontSize: 10, fontFamily: 'DM Sans' }} />
+          <ReferenceLine y={0} stroke="rgba(239,68,68,0.3)" strokeDasharray="4 4" label={{ value: 'Break-Even', fill: TOKENS.danger, fontSize: 10, fontFamily: 'DM Sans' }} />
           <Tooltip {...tooltipStyle} />
-          <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8', fontFamily: 'DM Sans' }} />
+          <Legend wrapperStyle={{ fontSize: 11, color: TOKENS.secondary, fontFamily: 'DM Sans' }} />
           {platforms.map(pid => (
             <Line
               key={pid}
@@ -299,7 +351,7 @@ function BreakEvenChart({ results }) {
               dot={false}
               activeDot={{ r: 4, strokeWidth: 0 }}
               animationBegin={0}
-              animationDuration={1200}
+              animationDuration={reduced ? 0 : 1200}
             />
           ))}
         </LineChart>

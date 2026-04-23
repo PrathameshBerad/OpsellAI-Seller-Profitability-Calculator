@@ -44,8 +44,8 @@ const GLOSSARY = {
     text: 'Offset GST you paid on business expenses against the GST you collect from buyers.',
   },
   adsSpend: {
-    label: 'Ads Spend',
-    text: 'Your allocated ad cost per unit (Sponsored Products, Flipkart PLA, etc.). Lowers net profit.',
+    label: 'Ads Spend (per unit)',
+    text: 'Ad cost for ONE sale. Quick math: monthly ad budget ÷ monthly sales. e.g. ₹5,000 ÷ 100 = ₹50/unit.',
   },
   returnImpact: {
     label: 'Return Impact',

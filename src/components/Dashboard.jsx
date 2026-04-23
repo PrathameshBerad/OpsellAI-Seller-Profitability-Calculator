@@ -311,34 +311,145 @@ function WaterfallChart({ results, products }) {
   );
 }
 
-/* ── 5. Break-Even Line Chart ───────────────────── */
+/* ── 5. Break-Even Line Chart ─────────────────────
+ * A real break-even chart: profit(u) = avgProfitPerUnit × u − fixedCost.
+ * Lines start at −fixedCost, cross the red reference line at the actual
+ * break-even unit. Without fixed costs the chart is a straight line
+ * through origin and teaches nothing — so we prompt for "Monthly fixed
+ * costs" (overhead, subscriptions, fixed ad retainers) first.
+ *
+ * The x-axis auto-scales to comfortably fit the highest break-even
+ * point so every platform line visibly crosses zero.
+ */
 function BreakEvenChart({ results }) {
   const reduced = useReducedMotion();
+  const [fixedCost, setFixedCost] = useState(0);
   const platforms = useMemo(() => [...new Set(results.map(r => r.platform))], [results]);
+
+  // Per-platform average profit per unit (from existing results).
+  const perUnit = useMemo(() => {
+    const out = {};
+    for (const pid of platforms) {
+      const pr = results.filter(r => r.platform === pid);
+      if (!pr.length) continue;
+      out[pid] = pr.reduce((s, r) => s + r.netProfit, 0) / pr.length;
+    }
+    return out;
+  }, [results, platforms]);
+
+  // Break-even unit per platform: fixedCost / perUnitProfit (ceil).
+  // null when perUnit ≤ 0 — the product is unprofitable per-sale, so no
+  // volume can cover any fixed cost.
+  const breakEven = useMemo(() => {
+    const out = {};
+    for (const pid of platforms) {
+      const pu = perUnit[pid];
+      if (pu == null) continue;
+      if (fixedCost <= 0) { out[pid] = 0; continue; }
+      out[pid] = pu > 0 ? Math.ceil(fixedCost / pu) : null;
+    }
+    return out;
+  }, [perUnit, fixedCost, platforms]);
+
+  // X-axis range: ~1.6× highest break-even, floor 100 units, cap 10,000.
+  const maxUnit = useMemo(() => {
+    const bes = Object.values(breakEven).filter(v => v != null && v > 0);
+    if (!bes.length) return 200;
+    return Math.min(10000, Math.max(100, Math.ceil(Math.max(...bes) * 1.6)));
+  }, [breakEven]);
 
   const data = useMemo(() => {
     const pts = [];
-    for (let u = 1; u <= 500; u += (u < 50 ? 1 : u < 200 ? 5 : 10)) {
+    const step = Math.max(1, Math.round(maxUnit / 80));
+    for (let u = 0; u <= maxUnit; u += step) {
       const pt = { units: u };
       for (const pid of platforms) {
-        const pr = results.filter(r => r.platform === pid);
-        if (!pr.length) continue;
-        pt[pid] = (pr.reduce((s, r) => s + r.netProfit, 0) / pr.length) * u;
+        const pu = perUnit[pid];
+        if (pu == null) continue;
+        pt[pid] = pu * u - fixedCost;
       }
       pts.push(pt);
     }
     return pts;
-  }, [results, platforms]);
+  }, [maxUnit, platforms, perUnit, fixedCost]);
+
+  const hasNegativePerUnit = Object.values(perUnit).some(v => v <= 0);
 
   return (
-    <ChartCard title="Break-Even Analysis" subtitle="Cumulative profit curve by monthly units sold">
-      <ResponsiveContainer width="100%" height={280}>
+    <ChartCard
+      title="Break-Even Analysis"
+      subtitle="Units you need to sell each month to cover your fixed costs"
+    >
+      {/* Fixed-cost control — the missing input that makes the chart honest */}
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          padding: '10px 12px', marginBottom: 14,
+          background: 'rgba(99,102,241,0.06)',
+          border: '1px solid rgba(99,102,241,0.18)',
+          borderRadius: 10,
+        }}
+      >
+        <label
+          htmlFor="breakeven-fixed-cost"
+          style={{
+            fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600,
+            color: 'var(--text-secondary)',
+          }}
+        >
+          Monthly fixed costs
+        </label>
+        <div style={{ position: 'relative' }}>
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+              color: 'var(--text-muted)', fontFamily: 'DM Mono', fontSize: 13,
+            }}
+          >₹</span>
+          <input
+            id="breakeven-fixed-cost"
+            type="number" min={0} inputMode="numeric"
+            value={fixedCost || ''}
+            placeholder="0"
+            onChange={e => setFixedCost(Math.max(0, Number(e.target.value) || 0))}
+            className="input-field"
+            style={{ width: 120, padding: '6px 10px 6px 24px', fontSize: 13 }}
+          />
+        </div>
+        <span
+          style={{
+            flex: '1 1 200px', minWidth: 200,
+            fontSize: 11, color: 'var(--text-muted)', fontFamily: 'DM Sans', lineHeight: 1.5,
+          }}
+        >
+          Software, storage, brand fees, fixed ad retainers — costs you pay
+          even if you sell 0 units this month. Per-unit ads already live in
+          the product form.
+        </span>
+      </div>
+
+      <ResponsiveContainer width="100%" height={260}>
         <LineChart data={data} margin={{ top: 4, right: 16, left: 4, bottom: 4 }}>
           <CartesianGrid {...gridProps} />
-          <XAxis dataKey="units" {...axisProps} />
-          <YAxis {...axisProps} />
-          <ReferenceLine y={0} stroke="rgba(239,68,68,0.3)" strokeDasharray="4 4" label={{ value: 'Break-Even', fill: TOKENS.danger, fontSize: 10, fontFamily: 'DM Sans' }} />
-          <Tooltip {...tooltipStyle} />
+          <XAxis
+            dataKey="units" {...axisProps}
+            label={{ value: 'Monthly units sold', position: 'insideBottom', offset: -2, fill: TOKENS.muted, fontSize: 10, fontFamily: 'DM Sans' }}
+          />
+          <YAxis
+            {...axisProps}
+            tickFormatter={v => v >= 1000 || v <= -1000 ? `${(v/1000).toFixed(1)}k` : v}
+          />
+          <ReferenceLine
+            y={0}
+            stroke="rgba(239,68,68,0.35)" strokeDasharray="4 4"
+            label={{ value: 'Break-even', fill: TOKENS.danger, fontSize: 10, fontFamily: 'DM Sans', position: 'insideTopRight' }}
+          />
+          <Tooltip
+            {...tooltipStyle}
+            formatter={(v) => [`₹${Math.round(v).toLocaleString('en-IN')}`, '']}
+            labelFormatter={(u) => `${u} units/month`}
+          />
           <Legend wrapperStyle={{ fontSize: 11, color: TOKENS.secondary, fontFamily: 'DM Sans' }} />
           {platforms.map(pid => (
             <Line
@@ -356,6 +467,68 @@ function BreakEvenChart({ results }) {
           ))}
         </LineChart>
       </ResponsiveContainer>
+
+      {/* Per-platform break-even summary — the one number TOFU users need */}
+      <div
+        role="note"
+        aria-label="Break-even summary"
+        style={{
+          marginTop: 14, display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8,
+        }}
+      >
+        {platforms.map(pid => {
+          const be = breakEven[pid];
+          const pu = perUnit[pid];
+          const color = PLATFORM_COLORS[pid];
+          let valueEl;
+          if (fixedCost <= 0) {
+            valueEl = <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Enter fixed costs →</span>;
+          } else if (pu <= 0) {
+            valueEl = <span style={{ color: TOKENS.danger, fontSize: 12, fontWeight: 600 }}>Loss-making per sale</span>;
+          } else {
+            valueEl = (
+              <span style={{ fontFamily: 'DM Mono', fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                {be.toLocaleString('en-IN')} <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, fontFamily: 'DM Sans' }}>units / mo</span>
+              </span>
+            );
+          }
+          return (
+            <div
+              key={pid}
+              style={{
+                padding: '10px 12px', borderRadius: 10,
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+                borderLeft: `3px solid ${color}`,
+              }}
+            >
+              <p style={{
+                fontFamily: 'DM Sans', fontSize: 11, color: 'var(--text-muted)',
+                textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2,
+              }}>
+                {PLATFORMS[pid]?.name || pid}
+              </p>
+              {valueEl}
+            </div>
+          );
+        })}
+      </div>
+
+      {hasNegativePerUnit && fixedCost > 0 && (
+        <p
+          role="alert"
+          style={{
+            marginTop: 10, padding: '8px 12px', borderRadius: 8,
+            background: 'rgba(239,68,68,0.08)',
+            border: '1px solid rgba(239,68,68,0.22)',
+            color: TOKENS.danger, fontFamily: 'DM Sans', fontSize: 12, lineHeight: 1.5,
+          }}
+        >
+          One or more platforms have negative profit per sale — no monthly volume
+          will cover fixed costs. Revisit COGS, ads, or pricing before scaling.
+        </p>
+      )}
     </ChartCard>
   );
 }

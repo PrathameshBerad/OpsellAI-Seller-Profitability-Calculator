@@ -77,6 +77,108 @@ function InputField({ label, value, onChange, type = 'number', tooltip, suffix, 
   );
 }
 
+/**
+ * Ads Spend field with an inline helper.
+ * TOFU users usually think in monthly budgets, not per-unit — so we give
+ * them the per-unit field the engine needs, plus a one-click helper that
+ * turns "I'll spend ₹5,000/mo, I expect 100 sales" into a per-unit value.
+ */
+function AdsSpendField({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [budget, setBudget] = useState('');
+  const [units, setUnits] = useState('');
+  const perUnit = (Number(budget) > 0 && Number(units) > 0)
+    ? Math.round(Number(budget) / Number(units))
+    : null;
+
+  return (
+    <div style={{ gridColumn: '1 / -1' }}>
+      <InputField
+        label="Ads Spend"
+        value={value}
+        onChange={onChange}
+        warning={value < 0 ? 'Cannot be negative' : ''}
+        tooltip="Ad cost for ONE sale. Quick math: monthly ad budget ÷ monthly sales. e.g. ₹5,000 ÷ 100 = ₹50/unit."
+      />
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-controls="ads-helper-body"
+        style={{
+          marginTop: 6, padding: '4px 0', background: 'transparent', border: 'none',
+          color: 'var(--accent-primary)', cursor: 'pointer',
+          fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+        }}
+      >
+        {open ? <IconMinus size={12} /> : <IconPlus size={12} />}
+        {open ? 'Hide calculator' : 'Not sure? Calculate per-unit spend'}
+      </button>
+      {open && (
+        <div
+          id="ads-helper-body"
+          className="animate-in"
+          style={{
+            marginTop: 8, padding: 12, borderRadius: 10,
+            background: 'rgba(99,102,241,0.06)',
+            border: '1px solid rgba(99,102,241,0.18)',
+          }}
+        >
+          <p style={{
+            fontSize: 11, color: 'var(--text-muted)', fontFamily: 'DM Sans',
+            textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8,
+          }}>
+            Monthly ad budget ÷ expected monthly sales
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <input
+              type="number" min={0} inputMode="numeric"
+              value={budget}
+              onChange={e => setBudget(e.target.value)}
+              placeholder="5000"
+              aria-label="Monthly ad budget"
+              className="input-field"
+              style={{ width: 92, fontSize: 13, padding: '6px 10px' }}
+            />
+            <span style={{ color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>÷</span>
+            <input
+              type="number" min={0} inputMode="numeric"
+              value={units}
+              onChange={e => setUnits(e.target.value)}
+              placeholder="100"
+              aria-label="Expected monthly sales"
+              className="input-field"
+              style={{ width: 72, fontSize: 13, padding: '6px 10px' }}
+            />
+            <span style={{ color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>=</span>
+            <span style={{
+              fontFamily: 'DM Mono', fontWeight: 700, fontSize: 14,
+              color: perUnit != null ? 'var(--accent-primary)' : 'var(--text-muted)',
+              fontVariantNumeric: 'tabular-nums', minWidth: 54,
+            }}>
+              {perUnit != null ? `₹${perUnit}` : '—'}
+            </span>
+            <button
+              type="button"
+              onClick={() => { if (perUnit != null) { onChange(perUnit); setOpen(false); } }}
+              disabled={perUnit == null}
+              className="btn btn-primary"
+              style={{
+                padding: '6px 12px', fontSize: 12, minHeight: 32,
+                opacity: perUnit == null ? 0.4 : 1,
+                cursor: perUnit == null ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Use ₹{perUnit ?? '—'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SelectField({ label, value, onChange, options }) {
   return (
     <div>
@@ -450,11 +552,9 @@ export default function CalculatorForm({ product, onUpdate, globalSettings, onUp
             warning={product.shippingCostToBuyer < 0 ? 'Cannot be negative' : ''}
             tooltip="Cost strictly charged to the buyer, if any."
           />
-          <InputField 
-            label="Ads Spend" 
-            value={product.adsSpend} 
-            onChange={v => onUpdate({ adsSpend: v })} 
-            warning={product.adsSpend < 0 ? 'Cannot be negative' : ''}
+          <AdsSpendField
+            value={product.adsSpend}
+            onChange={v => onUpdate({ adsSpend: v })}
           />
         </div>
       )}
